@@ -1,0 +1,253 @@
+import UIKit
+import PlaygroundSupport
+import MapKit
+
+/*:
+ > #### 直线方程
+ > * 一般式：`Ax + By + C = 0`
+ > * 两点式： `(x - x1) / (x2 - x1) = (y - y1) / (y2 - y1)`
+ >> * `A = y2 - y1`
+ >> * `B = x1 - x2`
+ >> * `C = x2 * y1 - x1 * y2`
+ */
+
+/*:
+ > 点到直线距离
+ > `d = |Ax + By + C| / sqrt(A * A + B * B)`
+ */
+
+extension CGPoint {
+    func distanceToLine(_ line: Line) -> CGFloat {
+        let a = line.p2.y - line.p1.y
+        let b = line.p1.x - line.p2.x
+        let c = line.p1.y * line.p2.x - line.p2.y * line.p1.x
+        
+        return abs(a * x + b * y + c) / sqrt(a * a + b * b)
+    }
+}
+
+struct Corner {
+    let point: CGPoint
+    let radius: CGFloat
+}
+
+extension Corner {
+    init(x: CGFloat, y: CGFloat, radius: CGFloat) {
+        point = CGPoint(x: x, y: y)
+        self.radius = radius
+    }
+}
+
+struct CurvedPoint {
+    var p1: CGPoint = .zero
+    var p2: CGPoint = .zero
+    var controlPoint: CGPoint = .zero
+    
+    init(p1: CGPoint, p2: CGPoint, controlPoint: CGPoint) {
+        self.p1 = p1
+        self.p2 = p2
+        self.controlPoint = controlPoint
+    }
+}
+
+struct Line {
+    let p1: CGPoint
+    var p2: CGPoint
+}
+
+protocol Shape {
+    func path() -> CGPath
+}
+
+struct CurvedPath: Shape {
+    let points: [Corner]
+    
+    var curvedPoints: [CurvedPoint] {
+        var result: [CurvedPoint] = []
+        for i in points.startIndex+1..<points.endIndex-1 {
+            let previous = points[i-1]
+            let current = points[i]
+            let next = points[i+1]
+            let curvedPoint = self.curvedPoint(previous.point, p2: current.point, p3: next.point, radius: current.radius)
+            result.append(curvedPoint)
+        }
+        return result
+    }
+    
+    init(points: [Corner]) {
+        self.points = points
+    }
+    
+    func centerOfTwoLine(_ l1: Line, l2: Line, radius: CGFloat) -> CGPoint {
+        
+        let a1 = l1.p2.y - l1.p1.y
+        let b1 = l1.p1.x - l1.p2.x
+        let c1 = l1.p1.y * l1.p2.x - l1.p2.y * l1.p1.x
+        
+        let a2 = l2.p2.y - l2.p1.y
+        let b2 = l2.p1.x - l2.p2.x
+        let c2 = l2.p1.y * l2.p2.x - l2.p2.y * l2.p1.x
+        
+        let d1 = sqrt(a1 * a1 + b1 * b1)
+        let d2 = sqrt(a2 * a2 + b2 * b2)
+       
+        let some = [
+            (radius * d1, radius * d2),
+            (-radius * d1, radius * d2),
+            (radius * d1, -radius * d2),
+            (-radius * d1, -radius * d2)
+        ]
+        
+        var center = CGPoint.zero
+        var mimDistance: CGFloat = CGFloat.infinity
+        var resultCenter: CGPoint = .zero
+        for s in some {
+            let r1 = s.0
+            let r2 = s.1
+            if a1 == 0 {
+                center.y = (r1 - c1) / b1
+                center.x = (r2 - c2 - b2 * center.y) / a2
+            } else {
+                let result = r2 - c2 - a2 * (r1 - c1) / a1
+                let o = b2 - b1 * a2 / a1
+                center.y = result / o
+                center.x = (r1 - c1 - b1 * center.y) / a1
+            }
+            let dd = center.distanceToLine(Line(p1: l1.p1, p2: l2.p2))
+            if dd < mimDistance {
+                mimDistance = dd
+                resultCenter = center
+            }
+        }
+        return resultCenter
+    }
+    
+    /// 求两条互相垂直直线的交点
+    /// - parameter line: 已知直线
+    /// - parameter p: 与已知直线的垂直线上的点
+    /// - returns 两条互相垂直直线的交点
+    func intersectionPointOfPerpendicularLine(_ line: Line, pointOfOtherLine p: CGPoint) -> CGPoint {
+        let a = line.p2.y - line.p1.y
+        let b = line.p1.x - line.p2.x
+        let c = line.p1.y * line.p2.x - line.p2.y * line.p1.x
+        
+        let bb = p.y - b / a * p.x
+        var point = CGPoint.zero
+        if a == 0 {
+            point.x = p.x
+            point.y = (-c - a * point.x) / b
+            
+        } else {
+            point.x = (-c - b * bb) * a / (a * a + b * b)
+            point.y = b / a * point.x + bb
+        }
+        return point
+    }
+    
+    func curvedPoint(_ p1: CGPoint, p2: CGPoint, p3: CGPoint, radius: CGFloat) -> CurvedPoint {
+        if radius == 0 {
+            return CurvedPoint(p1: p2, p2: p2, controlPoint: p2)
+        }
+        if p1 == p2 {
+            
+        }
+        
+        let center = centerOfTwoLine(Line(p1: p1, p2: p2), l2: Line(p1: p2, p2: p3), radius: radius)
+        let controlP1 = intersectionPointOfPerpendicularLine(Line(p1: p1, p2: p2), pointOfOtherLine: center)
+        let controlP2 = intersectionPointOfPerpendicularLine(Line(p1: p2, p2: p3), pointOfOtherLine: center)
+
+        return CurvedPoint(p1: controlP1, p2: controlP2, controlPoint: p2)
+    }
+    
+    func path() -> CGPath {
+        let beizerPath = UIBezierPath()
+        guard !points.isEmpty else { return beizerPath.cgPath }
+        
+        beizerPath.move(to: points[0].point)
+        
+        let curvedPoints = self.curvedPoints
+        for i in curvedPoints.startIndex..<curvedPoints.endIndex {
+            let current = curvedPoints[i]
+            beizerPath.addLine(to: current.p1)
+            if current.p2 != current.controlPoint { // 半径不为0
+                beizerPath.addQuadCurve(to: current.p2, controlPoint: current.controlPoint)
+            }
+            beizerPath.move(to: current.p2)
+        }
+        beizerPath.addLine(to: points.last!.point)
+        return beizerPath.cgPath
+    }
+}
+
+struct Polyline: Shape {
+    var points: [CGPoint]
+    
+    func path() -> CGPath {
+        let beizerPath = UIBezierPath()
+        guard !points.isEmpty else { return beizerPath.cgPath }
+        
+        beizerPath.move(to: points[0])
+        for i in 1..<points.count {
+            beizerPath.addLine(to: points[i])
+        }
+        return beizerPath.cgPath
+    }
+}
+
+class PaintView: UIView {
+    var points: [Corner] = [] {
+        didSet {
+            setNeedsDisplay()
+        }
+    }
+    
+    override func draw(_ rect: CGRect) {
+        let curvedPath = CurvedPath(points: points)
+        
+        guard let contex = UIGraphicsGetCurrentContext()
+            , !points.isEmpty else { return }
+        
+        contex.setLineWidth(2)
+        contex.setLineCap(.square)
+        contex.saveGState()
+        contex.setStrokeColor(UIColor.white.cgColor)
+        contex.setLineDash(phase: 0, lengths: [6, 6])
+        let dash = Polyline(points: points.map { $0.point })
+        contex.addPath(dash.path())
+        contex.strokePath()
+        contex.restoreGState()
+        
+        contex.setStrokeColor(UIColor.red.cgColor)
+        contex.addPath(curvedPath.path())
+        contex.strokePath()
+    }
+}
+
+let points: [Corner] = [
+    Corner(x: 100, y: 60, radius: 40),
+    Corner(x: 420, y: 60, radius: 40),
+    Corner(x: 420, y: 450, radius: 50),
+    Corner(x: 90, y: 450, radius: 50),
+]
+
+let points2: [Corner] = [
+    Corner(x: 100, y: 60, radius: 40),
+    Corner(x: 90, y: 440, radius: 100),
+    Corner(x: 400, y: 450, radius: 50),
+    Corner(x: 420, y: 70, radius: 40),
+]
+
+let points3: [Corner] = [
+    Corner(x: 10, y: 10, radius: 40),
+    Corner(x: 40, y: 440, radius: 80),
+    Corner(x: 400, y: 150, radius: 50),
+    Corner(x: 500, y: 300, radius: 40),
+    Corner(x: 560, y: 260, radius: 40),
+]
+
+let view = PaintView(frame: CGRect(x: 0, y: 0, width: 700, height: 700))
+view.points = points3
+PlaygroundPage.current.liveView = view
+
+
+//MKPolyline
