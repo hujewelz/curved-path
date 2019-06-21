@@ -175,8 +175,8 @@ struct CurvedPath: Shape {
             beizerPath.addLine(to: current.p1)
             if current.p2 != current.controlPoint { // 半径不为0
                 beizerPath.addQuadCurve(to: current.p2, controlPoint: current.controlPoint)
-                let circle = UIBezierPath(arcCenter: current.center, radius: current.radius, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: false)
-                beizerPath.append(circle)
+//                let circle = UIBezierPath(arcCenter: current.center, radius: current.radius, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: false)
+//                beizerPath.append(circle)
 //                beizerPath.addArc(withCenter: current.center, radius: current.radius, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: false)
             }
             beizerPath.move(to: current.p2)

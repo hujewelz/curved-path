@@ -23,7 +23,7 @@ class pathSampleTests: XCTestCase {
     func testDistanceToLine() {
         let point = CGPoint(x: 0, y: 100)
         let distance = point.distanceToLine(Line(p1: .zero, p2: CGPoint(x: 100, y: 0)))
-        XCTAssertEqual(distance, 101, "Distance should be 100")
+        XCTAssertEqual(distance, 100, "Distance should be 100")
     }
 
 }
