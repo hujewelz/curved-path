@@ -1,20 +1,12 @@
+//
+//  CurvedPath.swift
+//  pathSample
+//
+//  Created by huluobo on 2019/6/21.
+//  Copyright © 2019 jewelz. All rights reserved.
+//
+
 import UIKit
-import PlaygroundSupport
-import MapKit
-
-/*:
- > #### 直线方程
- > * 一般式：`Ax + By + C = 0`
- > * 两点式： `(x - x1) / (x2 - x1) = (y - y1) / (y2 - y1)`
- >> * `A = y2 - y1`
- >> * `B = x1 - x2`
- >> * `C = x2 * y1 - x1 * y2`
- */
-
-/*:
- > 点到直线距离
- > `d = |Ax + By + C| / sqrt(A * A + B * B)`
- */
 
 extension CGPoint {
     func distanceToLine(_ line: Line) -> CGFloat {
@@ -94,7 +86,7 @@ struct CurvedPath: Shape {
         
         let d1 = sqrt(a1 * a1 + b1 * b1)
         let d2 = sqrt(a2 * a2 + b2 * b2)
-       
+        
         let some = [
             (radius * d1, radius * d2),
             (-radius * d1, radius * d2),
@@ -159,7 +151,7 @@ struct CurvedPath: Shape {
         let center = centerOfTwoLine(Line(p1: p1, p2: p2), l2: Line(p1: p2, p2: p3), radius: radius)
         let controlP1 = intersectionPointOfPerpendicularLine(Line(p1: p1, p2: p2), pointAtOtherLine: center)
         let controlP2 = intersectionPointOfPerpendicularLine(Line(p1: p2, p2: p3), pointAtOtherLine: center)
-
+        
         return CurvedPoint(p1: controlP1, p2: controlP2, controlPoint: p2, center: center, radius: radius)
     }
     
@@ -177,7 +169,7 @@ struct CurvedPath: Shape {
                 beizerPath.addQuadCurve(to: current.p2, controlPoint: current.controlPoint)
                 let circle = UIBezierPath(arcCenter: current.center, radius: current.radius, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: false)
                 beizerPath.append(circle)
-//                beizerPath.addArc(withCenter: current.center, radius: current.radius, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: false)
+                //                beizerPath.addArc(withCenter: current.center, radius: current.radius, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: false)
             }
             beizerPath.move(to: current.p2)
         }
@@ -200,62 +192,3 @@ struct Polyline: Shape {
         return beizerPath.cgPath
     }
 }
-
-class PaintView: UIView {
-    var points: [Corner] = [] {
-        didSet {
-            setNeedsDisplay()
-        }
-    }
-    
-    override func draw(_ rect: CGRect) {
-        let curvedPath = CurvedPath(points: points)
-        
-        guard let contex = UIGraphicsGetCurrentContext()
-            , !points.isEmpty else { return }
-        
-        contex.setFillColor(UIColor.red.cgColor)
-        contex.setLineWidth(2)
-        contex.setLineCap(.square)
-        contex.saveGState()
-        contex.setStrokeColor(UIColor.white.cgColor)
-        contex.setLineDash(phase: 0, lengths: [6, 6])
-        let dash = Polyline(points: points.map { $0.point })
-        contex.addPath(dash.path())
-        contex.strokePath()
-        contex.restoreGState()
-        
-        contex.setStrokeColor(UIColor.red.cgColor)
-        contex.addPath(curvedPath.path())
-        contex.strokePath()
-    }
-}
-
-let points: [Corner] = [
-    Corner(x: 100, y: 60, radius: 40),
-    Corner(x: 420, y: 60, radius: 40),
-    Corner(x: 420, y: 450, radius: 50),
-    Corner(x: 90, y: 450, radius: 50),
-]
-
-let points2: [Corner] = [
-    Corner(x: 100, y: 60, radius: 40),
-    Corner(x: 90, y: 440, radius: 100),
-    Corner(x: 400, y: 450, radius: 50),
-    Corner(x: 420, y: 70, radius: 40),
-]
-
-let points3: [Corner] = [
-    Corner(x: 10, y: 10, radius: 40),
-    Corner(x: 40, y: 440, radius: 80),
-    Corner(x: 400, y: 150, radius: 50),
-    Corner(x: 500, y: 300, radius: 40),
-    Corner(x: 560, y: 260, radius: 40),
-]
-
-let view = PaintView(frame: CGRect(x: 0, y: 0, width: 700, height: 700))
-view.points = points3
-PlaygroundPage.current.liveView = view
-
-
-//MKPolyline
